@@ -3,12 +3,18 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 
 import patoolib
 from loguru import logger
 
 import lib.config as config
 import lib.thread as thread
+
+if sys.platform == "win32":
+    import win32file
+
+FILE_ATTRIBUTE_REPARSE_POINT = 1024
 
 ARCHIVE_VERBOSITY = -1
 ARCHIVE_INTERACTIVE = False
@@ -121,8 +127,17 @@ def check_same_path(path1, path2):
 
 def is_symlink(path):
     """Tests if a path is a symlink."""
-    # return os.path.islink(path)
-    # TODO improve performance. Very slow
+    # https://stackoverflow.com/a/52859239
+    if sys.platform != "win32" or sys.getwindowsversion()[0] < 6:
+        return os.path.islink(path)
+    return bool(
+        os.path.exists(path)
+        and win32file.GetFileAttributes(path) & FILE_ATTRIBUTE_REPARSE_POINT
+        == FILE_ATTRIBUTE_REPARSE_POINT
+    )
+
+    """
+    # Very slow
     process = subprocess.run(
         ["cmd", "/c", "fsutil", "reparsepoint", "query", path],
         check=False,
@@ -130,6 +145,7 @@ def is_symlink(path):
         stderr=subprocess.DEVNULL,
     )
     return process.returncode == 0
+    """
 
 
 def create_symlink(src, dest, update_func=None):
@@ -138,6 +154,8 @@ def create_symlink(src, dest, update_func=None):
         update_func("Creating symlink between {} and {}".format(src, dest))
 
     # os.symlink(src, dest)
+
+    # create the link
     subprocess.run(
         ["cmd", "/c", "mklink", "/J", dest, src],
         check=True,
