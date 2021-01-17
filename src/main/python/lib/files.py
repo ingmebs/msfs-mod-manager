@@ -122,22 +122,46 @@ def check_same_path(path1, path2):
 def is_symlink(path):
     """Tests if a path is a symlink."""
     # return os.path.islink(path)
-    process = subprocess.run(['cmd', '/c', 'fsutil', 'reparsepoint', 'query', path], check=True)
+    # TODO improve performance. Very slow
+    process = subprocess.run(
+        ["cmd", "/c", "fsutil", "reparsepoint", "query", path],
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     return process.returncode == 0
+
 
 def create_symlink(src, dest, update_func=None):
     """Creates a symlink between two directories."""
     if update_func:
         update_func("Creating symlink between {} and {}".format(src, dest))
 
-    #os.symlink(src, dest)
-    subprocess.run(['cmd', '/c', 'mklink', '/J', dest, src], check=True)
+    # os.symlink(src, dest)
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", dest, src],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
 
 def delete_symlink(path, update_func=None):
     """Deletes a symlink without removing the directory it is linked to."""
     if update_func:
         update_func("Deleting symlink {} ".format(path))
-    os.unlink(path)
+
+    # os.unlink(path)
+
+    # remove the link
+    subprocess.run(
+        ["cmd", "/c", "fsutil", "reparsepoint", "delete", path],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    # delete the empty folder
+    delete_folder(path)
 
 
 def get_folder_size(folder):

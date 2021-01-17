@@ -636,22 +636,17 @@ class main_widget(QtWidgets.QWidget):
                 self.appctxt.app.processEvents()
 
             # build list of mods
-            enabled_mods, enabled_errors = self.flight_sim.get_enabled_mods(
+            all_mods_data, all_mods_errors = self.flight_sim.get_all_mods(
                 progress_func=update
             )
-            disabled_mods, disabled_errors = self.flight_sim.get_disabled_mods(
-                progress_func=update
-            )
-
-            all_errors = enabled_errors + disabled_errors
 
             # set data
-            self.main_table.set_data(enabled_mods + disabled_mods, first=first)
+            self.main_table.set_data(all_mods_data, first=first)
             self.main_table.set_colors(self.parent.theme_menu_action.isChecked())
 
             # display errors
-            if all_errors:
-                warning_dialogs.mod_parsing(self, all_errors)
+            if all_mods_errors:
+                warning_dialogs.mod_parsing(self, all_mods_errors)
 
             # put the search back to how it was
             self.search()

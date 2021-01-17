@@ -382,54 +382,61 @@ class flight_sim:
         logger.debug("Game version: {}".format(version))
         return version
 
-    def get_enabled_mods(self, progress_func=None):
-        """Returns data for the enabled mods."""
-        logger.debug("Retrieving list of enabled mods")
-        enabled_mods = []
+    def get_mods(self, folders, enabled, progress_func=None, start=0):
+        """Returns data a list of mod folders."""
+
+        mods = []
         errors = []
 
-        all_folders = files.listdir_dirs(self.get_sim_mod_folder(), full_paths=True)
-
-        for i, folder in enumerate(all_folders):
+        for i, folder in enumerate(folders):
             if progress_func:
                 progress_func(
-                    "Loading enabled mods: {}".format(folder),
-                    i,
-                    len(all_folders) - 1,
+                    "Loading mods: {}".format(folder),
+                    start + i,
+                    start + len(folders) - 1,
                 )
 
             # parse each mod
             try:
-                enabled_mods.append(self.parse_mod_manifest(folder, enabled=True))
+                mods.append(self.parse_mod_manifest(folder, enabled=enabled))
             except (NoManifestError, ManifestError):
                 errors.append(folder)
 
-        return enabled_mods, errors
+        return mods, errors
 
-    def get_disabled_mods(self, progress_func=None):
-        """Returns data for the disabled mods."""
-        logger.debug("Retrieving list of disabled mods")
+    def get_all_mods(self, progress_func=None):
+        """Returns data and errors for all mods."""
 
-        disabled_mods = []
-        errors = []
+        enabled_mod_folders = files.listdir_dirs(
+            self.get_sim_mod_folder(), full_paths=True
+        )
+        disabled_mod_folders = files.listdir_dirs(
+            files.get_mod_cache_folder(), full_paths=True
+        )
 
-        all_folders = files.listdir_dirs(files.get_mod_cache_folder(), full_paths=True)
-
-        for i, folder in enumerate(all_folders):
-            if progress_func:
-                progress_func(
-                    "Loading disabled mods: {}".format(folder),
-                    i,
-                    len(all_folders) - 1,
+        for folder in enabled_mod_folders:
+            # remove duplicate folders from disabled list if there is a symlink for them
+            if files.is_symlink(folder):
+                cache_folder = os.path.join(
+                    files.get_mod_cache_folder(), os.path.basename(folder)
                 )
+                if cache_folder in disabled_mod_folders:
+                    disabled_mod_folders.remove(cache_folder)
 
-            # parse each mod
-            try:
-                disabled_mods.append(self.parse_mod_manifest(folder, enabled=False))
-            except (NoManifestError, ManifestError):
-                errors.append(folder)
+        enabled_mod_data, enabled_mod_errors = self.get_mods(
+            enabled_mod_folders, enabled=True, progress_func=progress_func
+        )
+        disabled_mod_data, disabled_mod_errors = self.get_mods(
+            disabled_mod_folders,
+            enabled=False,
+            progress_func=progress_func,
+            start=len(enabled_mod_data) - 1,
+        )
 
-        return disabled_mods, errors
+        return (
+            enabled_mod_data + disabled_mod_data,
+            enabled_mod_errors + disabled_mod_errors,
+        )
 
     def extract_mod_archive(self, archive, update_func=None):
         """Extracts an archive file into a temp directory and returns the new path."""
@@ -535,7 +542,6 @@ class flight_sim:
         )
 
     def uninstall_mod(self, folder, update_func=None):
-        # TODO, SUPPORT SYMLINK
         """Uninstalls a mod."""
         logger.debug("Uninstalling mod {}".format(folder))
         # delete folder
@@ -545,7 +551,7 @@ class flight_sim:
     def enable_mod(self, folder, update_func=None):
         """Copies mod folder into flight sim install."""
         logger.debug("Enabling mod {}".format(folder))
-        src_folder = self.get_mod_folder(folder,enabled=False)
+        src_folder = self.get_mod_folder(folder, enabled=False)
         dest_folder = self.get_mod_folder(folder, enabled=True)
 
         # create symlink to sim
@@ -557,7 +563,6 @@ class flight_sim:
         logger.debug("Disabling mod {}".format(folder))
         src_folder = self.get_mod_folder(folder, enabled=True)
         dest_folder = self.get_mod_folder(folder, enabled=False)
-
 
         if files.is_symlink(src_folder):
             # delete symlink
