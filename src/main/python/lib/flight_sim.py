@@ -32,10 +32,10 @@ class NoModsError(Exception):
 class install_mods_thread(thread.base_thread):
     """Setup a thread to install mods with and not block the main thread."""
 
-    def __init__(self, flight_sim, extracted_archive):
+    def __init__(self, flight_sim_handle, extracted_archive):
         """Initialize the mod installer thread."""
         logger.debug("Initialzing mod installer thread")
-        function = lambda: flight_sim.install_mods(
+        function = lambda: flight_sim_handle.install_mods(
             extracted_archive,
             update_func=self.activity_update.emit,
         )
@@ -45,10 +45,10 @@ class install_mods_thread(thread.base_thread):
 class install_mod_archive_thread(thread.base_thread):
     """Setup a thread to install mod archive with and not block the main thread."""
 
-    def __init__(self, flight_sim, mod_archive):
+    def __init__(self, flight_sim_handle, mod_archive):
         """Initialize the mod archive installer thread."""
         logger.debug("Initialzing mod archive installer thread")
-        function = lambda: flight_sim.install_mod_archive(
+        function = lambda: flight_sim_handle.install_mod_archive(
             mod_archive,
             update_func=self.activity_update.emit,
             percent_func=self.percent_update.emit,
@@ -61,12 +61,12 @@ class uninstall_mod_thread(thread.base_thread):
 
     def __init__(
         self,
-        flight_sim,
+        flight_sim_handle,
         folder,
     ):
         """Initialize the mod uninstaller thread."""
         logger.debug("Initialzing mod uninstaller thread")
-        function = lambda: flight_sim.uninstall_mod(
+        function = lambda: flight_sim_handle.uninstall_mod(
             folder,
             update_func=self.activity_update.emit,
         )
@@ -76,10 +76,10 @@ class uninstall_mod_thread(thread.base_thread):
 class enable_mod_thread(thread.base_thread):
     """Setup a thread to enable mods with and not block the main thread."""
 
-    def __init__(self, flight_sim, folder):
+    def __init__(self, flight_sim_handle, folder):
         """Initialize the mod enabler thread."""
         logger.debug("Initialzing mod enabler thread")
-        function = lambda: flight_sim.enable_mod(
+        function = lambda: flight_sim_handle.enable_mod(
             folder, update_func=self.activity_update.emit
         )
         thread.base_thread.__init__(self, function)
@@ -88,10 +88,10 @@ class enable_mod_thread(thread.base_thread):
 class disable_mod_thread(thread.base_thread):
     """Setup a thread to disable mods with and not block the main thread."""
 
-    def __init__(self, flight_sim, archive):
+    def __init__(self, flight_sim_handle, archive):
         """Initialize the mod disabler thread."""
         logger.debug("Initialzing mod disabler thread")
-        function = lambda: flight_sim.disable_mod(
+        function = lambda: flight_sim_handle.disable_mod(
             archive, update_func=self.activity_update.emit
         )
         thread.base_thread.__init__(self, function)
@@ -100,10 +100,10 @@ class disable_mod_thread(thread.base_thread):
 class create_backup_thread(thread.base_thread):
     """Setup a thread to create backup with and not block the main thread."""
 
-    def __init__(self, flight_sim, archive):
+    def __init__(self, flight_sim_handle, archive):
         """Initialize the backup creator thread."""
         logger.debug("Initialzing backup creator thread")
-        function = lambda: flight_sim.create_backup(
+        function = lambda: flight_sim_handle.create_backup(
             archive, update_func=self.activity_update.emit
         )
         thread.base_thread.__init__(self, function)
@@ -409,8 +409,6 @@ class flight_sim:
     def get_disabled_mods(self, progress_func=None):
         """Returns data for the disabled mods."""
         logger.debug("Retrieving list of disabled mods")
-        # ensure cache folder already exists
-        files.create_mod_cache_folder()
 
         disabled_mods = []
         errors = []
@@ -501,13 +499,17 @@ class flight_sim:
         for i, mod_folder in enumerate(mod_folders):
             # get the base folder name
             base_mod_folder = os.path.basename(mod_folder)
+            cache_folder = os.path.join(files.get_mod_cache_folder(), base_mod_folder)
             dest_folder = os.path.join(self.get_sim_mod_folder(), base_mod_folder)
 
-            # copy mod to sim
+            # copy mod to install dir
             if delete:
-                files.move_folder(mod_folder, dest_folder, update_func=update_func)
+                files.move_folder(mod_folder, cache_folder, update_func=update_func)
             else:
-                files.copy_folder(mod_folder, dest_folder, update_func=update_func)
+                files.copy_folder(mod_folder, cache_folder, update_func=update_func)
+
+            # create the symlink to the sim
+            files.create_symlink(cache_folder, dest_folder)
 
             if percent_func:
                 percent_func((i, len(mod_folders)))
@@ -533,6 +535,7 @@ class flight_sim:
         )
 
     def uninstall_mod(self, folder, update_func=None):
+        # TODO, SUPPORT SYMLINK
         """Uninstalls a mod."""
         logger.debug("Uninstalling mod {}".format(folder))
         # delete folder
@@ -542,23 +545,27 @@ class flight_sim:
     def enable_mod(self, folder, update_func=None):
         """Copies mod folder into flight sim install."""
         logger.debug("Enabling mod {}".format(folder))
-        src_folder = self.get_mod_folder(folder, False)
-        dest_folder = self.get_mod_folder(folder, True)
+        src_folder = self.get_mod_folder(folder,enabled=False)
+        dest_folder = self.get_mod_folder(folder, enabled=True)
 
-        # move mod to sim
-        files.move_folder(src_folder, dest_folder, update_func=update_func)
+        # create symlink to sim
+        files.create_symlink(src_folder, dest_folder, update_func=update_func)
         return True
 
     def disable_mod(self, folder, update_func=None):
         """Copies mod folder into mod cache."""
         logger.debug("Disabling mod {}".format(folder))
-        files.create_mod_cache_folder()
+        src_folder = self.get_mod_folder(folder, enabled=True)
+        dest_folder = self.get_mod_folder(folder, enabled=False)
 
-        src_folder = self.get_mod_folder(folder, True)
-        dest_folder = self.get_mod_folder(folder, False)
 
-        # move mod to mod cache
-        files.move_folder(src_folder, dest_folder, update_func=update_func)
+        if files.is_symlink(src_folder):
+            # delete symlink
+            files.delete_symlink(src_folder, update_func=update_func)
+        else:
+            # move mod to mod cache
+            files.move_folder(src_folder, dest_folder, update_func=update_func)
+
         return True
 
     def create_backup(self, archive, update_func=None):

@@ -2,6 +2,7 @@ import hashlib
 import os
 import shutil
 import stat
+import subprocess
 
 import patoolib
 from loguru import logger
@@ -116,6 +117,27 @@ def check_same_path(path1, path2):
     return resolve_symlink(os.path.abspath(path1)) == resolve_symlink(
         os.path.abspath(path2)
     )
+
+
+def is_symlink(path):
+    """Tests if a path is a symlink."""
+    # return os.path.islink(path)
+    process = subprocess.run(['cmd', '/c', 'fsutil', 'reparsepoint', 'query', path], check=True)
+    return process.returncode == 0
+
+def create_symlink(src, dest, update_func=None):
+    """Creates a symlink between two directories."""
+    if update_func:
+        update_func("Creating symlink between {} and {}".format(src, dest))
+
+    #os.symlink(src, dest)
+    subprocess.run(['cmd', '/c', 'mklink', '/J', dest, src], check=True)
+
+def delete_symlink(path, update_func=None):
+    """Deletes a symlink without removing the directory it is linked to."""
+    if update_func:
+        update_func("Deleting symlink {} ".format(path))
+    os.unlink(path)
 
 
 def get_folder_size(folder):
@@ -307,15 +329,13 @@ def get_mod_cache_folder():
         value = os.path.abspath(os.path.join(config.BASE_FOLDER, "modCache"))
         config.set_key_value(config.MOD_CACHE_FOLDER_KEY, value, path=True)
 
-    return fix_path(value)
+    mod_cache_folder = fix_path(value)
 
-
-def create_mod_cache_folder():
-    """Creates mod cache folder if it does not exist."""
-    mod_cache_folder = get_mod_cache_folder()
     if not os.path.exists(mod_cache_folder):
         logger.debug("Creating mod cache folder {}".format(mod_cache_folder))
         os.makedirs(mod_cache_folder)
+
+    return mod_cache_folder
 
 
 def extract_archive(archive, folder, update_func=None):
