@@ -4,6 +4,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import re
 
 import patoolib
 from loguru import logger
@@ -128,6 +129,7 @@ def check_same_path(path1, path2):
 def is_symlink(path):
     """Tests if a path is a symlink."""
     # https://stackoverflow.com/a/52859239
+    # http://www.flexhex.com/docs/articles/hard-links.phtml
     if sys.platform != "win32" or sys.getwindowsversion()[0] < 6:
         return os.path.islink(path)
     return bool(
@@ -136,16 +138,19 @@ def is_symlink(path):
         == FILE_ATTRIBUTE_REPARSE_POINT
     )
 
-    """
-    # Very slow
+def read_symlink(path):
+    """Returns the original path of a symlink."""
+    # Pretty slow, avoid if possible
+    # TODO, reimplement with Win32
     process = subprocess.run(
         ["cmd", "/c", "fsutil", "reparsepoint", "query", path],
         check=False,
-        stdout=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
     )
-    return process.returncode == 0
-    """
+    output = process.stdout.decode("utf-8")
+    # https://regex101.com/r/8hc7yq/1
+    return re.search("Print Name:\\s+(.+)\\s+Reparse Data", output, re.MULTILINE).group(1)
 
 
 def create_symlink(src, dest, update_func=None):
@@ -154,6 +159,7 @@ def create_symlink(src, dest, update_func=None):
         update_func("Creating symlink between {} and {}".format(src, dest))
 
     # os.symlink(src, dest)
+    # TODO, reimplement with Win32
 
     # create the link
     subprocess.run(
@@ -170,6 +176,7 @@ def delete_symlink(path, update_func=None):
         update_func("Deleting symlink {} ".format(path))
 
     # os.unlink(path)
+    # TODO, reimplement with Win32
 
     # remove the link
     subprocess.run(
@@ -339,7 +346,7 @@ def resolve_symlink(folder):
     # resolve links at every step
     for part in parts:
         new_path = os.path.join(new_path, part)
-        if os.path.islink(new_path):
+        if is_symlink(new_path):
             new_path = os.path.readlink(new_path)
 
     return new_path
