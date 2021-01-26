@@ -1,10 +1,10 @@
 import hashlib
 import os
+import re
 import shutil
 import stat
 import subprocess
 import sys
-import re
 
 import patoolib
 from loguru import logger
@@ -138,6 +138,7 @@ def is_symlink(path):
         == FILE_ATTRIBUTE_REPARSE_POINT
     )
 
+
 def read_symlink(path):
     """Returns the original path of a symlink."""
     # Pretty slow, avoid if possible
@@ -150,7 +151,9 @@ def read_symlink(path):
     )
     output = process.stdout.decode("utf-8")
     # https://regex101.com/r/8hc7yq/1
-    return re.search("Print Name:\\s+(.+)\\s+Reparse Data", output, re.MULTILINE).group(1)
+    return re.search("Print Name:\\s+(.+)\\s+Reparse Data", output, re.MULTILINE).group(
+        1
+    )
 
 
 def create_symlink(src, dest, update_func=None):
