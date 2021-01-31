@@ -141,6 +141,9 @@ def is_symlink(path):
 
 def read_symlink(path):
     """Returns the original path of a symlink."""
+    if os.path.islink(path):
+        return os.path.readlink(path)
+
     # Pretty slow, avoid if possible
     # TODO, reimplement with Win32
     process = subprocess.run(
@@ -350,7 +353,7 @@ def resolve_symlink(folder):
     for part in parts:
         new_path = os.path.join(new_path, part)
         if is_symlink(new_path):
-            new_path = os.path.readlink(new_path)
+            new_path = read_symlink(new_path)
 
     return new_path
 
@@ -366,28 +369,28 @@ def get_last_open_folder():
     """Gets the last opened directory from the config file."""
     succeeded, value = config.get_key_value(config.LAST_OPEN_FOLDER_KEY, path=True)
     if not succeeded or not os.path.isdir(value):
-        # if mod cache folder could not be loaded from config
+        # if mod install folder could not be loaded from config
         value = os.path.abspath(os.path.join(os.path.expanduser("~"), "Downloads"))
         config.set_key_value(config.LAST_OPEN_FOLDER_KEY, value, path=True)
 
     return fix_path(value)
 
 
-def get_mod_cache_folder():
-    """Gets the current mod cache folder value from the config file."""
-    succeeded, value = config.get_key_value(config.MOD_CACHE_FOLDER_KEY, path=True)
+def get_mod_install_folder():
+    """Gets the current mod install folder value from the config file."""
+    succeeded, value = config.get_key_value(config.MOD_INSTALL_FOLDER_KEY, path=True)
     if not succeeded:
-        # if mod cache folder could not be loaded from config
+        # if mod install folder could not be loaded from config
         value = os.path.abspath(os.path.join(config.BASE_FOLDER, "modCache"))
-        config.set_key_value(config.MOD_CACHE_FOLDER_KEY, value, path=True)
+        config.set_key_value(config.MOD_INSTALL_FOLDER_KEY, value, path=True)
 
-    mod_cache_folder = fix_path(value)
+    mod_install_folder = fix_path(value)
 
-    if not os.path.exists(mod_cache_folder):
-        logger.debug("Creating mod cache folder {}".format(mod_cache_folder))
-        os.makedirs(mod_cache_folder)
+    if not os.path.exists(mod_install_folder):
+        logger.debug("Creating mod install folder {}".format(mod_install_folder))
+        os.makedirs(mod_install_folder)
 
-    return mod_cache_folder
+    return mod_install_folder
 
 
 def extract_archive(archive, folder, update_func=None):

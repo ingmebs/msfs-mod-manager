@@ -162,19 +162,19 @@ class main_widget(QtWidgets.QWidget):
             # notify user
             information_dialogs.sim_detected(self, self.flight_sim.sim_packages_folder)
 
-    def select_mod_cache(self):
-        """Allow user to select new mod cache folder."""
-        old_cache = files.get_mod_cache_folder()
+    def select_mod_install(self):
+        """Allow user to select new mod install folder."""
+        old_install = files.get_mod_install_folder()
 
-        new_cache = QtWidgets.QFileDialog.getExistingDirectory(
+        new_install = QtWidgets.QFileDialog.getExistingDirectory(
             parent=self,
-            caption="Select disabled mod folder",
-            dir=os.path.dirname(old_cache),
+            caption="Select mod install folder",
+            dir=os.path.dirname(old_install),
         )
 
         def core(progress):
             # setup mover thread
-            mover = files.move_folder_thread(old_cache, new_cache)
+            mover = files.move_folder_thread(old_install, new_install)
             mover.activity_update.connect(progress.set_activity)
 
             def failed(err):
@@ -193,10 +193,10 @@ class main_widget(QtWidgets.QWidget):
             ):
                 mover.start()
 
-            config.set_key_value(config.MOD_CACHE_FOLDER_KEY, new_cache, path=True)
-            information_dialogs.disabled_mods_folder(self, new_cache)
+            config.set_key_value(config.MOD_INSTALL_FOLDER_KEY, new_install, path=True)
+            information_dialogs.disabled_mods_folder(self, new_install)
 
-        if new_cache and not files.check_same_path(old_cache, new_cache):
+        if new_install and not files.check_same_path(old_install, new_install):
             self.base_action(core)
 
     # ======================

@@ -10,7 +10,8 @@ CONFIG_FILE = os.path.abspath(os.path.join(BASE_FOLDER, "config.ini"))
 SECTION_KEY = "settings"
 
 SIM_FOLDER_KEY = "sim_folder"
-MOD_CACHE_FOLDER_KEY = "mod_cache_folder"
+# this key is kept as-is for legacy purposes
+MOD_INSTALL_FOLDER_KEY = "mod_cache_folder"
 LAST_OPEN_FOLDER_KEY = "last_open_folder"
 
 LAST_VER_CHECK_KEY = "last_version_check"

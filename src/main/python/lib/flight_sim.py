@@ -286,7 +286,7 @@ class flight_sim:
         if enabled:
             mod_folder = os.path.join(self.get_sim_mod_folder(), folder)
         else:
-            mod_folder = os.path.join(files.get_mod_cache_folder(), folder)
+            mod_folder = os.path.join(files.get_mod_install_folder(), folder)
 
         # logger.debug("Final mod path: {}".format(mod_folder))
 
@@ -396,6 +396,17 @@ class flight_sim:
                     start + len(folders) - 1,
                 )
 
+            try:
+                if not os.listdir(folder):
+                    # if the mod folder is completely empty, just delete it
+                    files.delete_folder(folder)
+                    continue
+            except FileNotFoundError:
+                # in the case of a broken symlink, this will trigger an error
+                # unfortuantely, a os.path.exists or isdir will return true
+                files.delete_symlink(folder)
+                continue
+
             # parse each mod
             try:
                 mods.append(self.parse_mod_manifest(folder, enabled=enabled))
@@ -411,17 +422,17 @@ class flight_sim:
             self.get_sim_mod_folder(), full_paths=True
         )
         disabled_mod_folders = files.listdir_dirs(
-            files.get_mod_cache_folder(), full_paths=True
+            files.get_mod_install_folder(), full_paths=True
         )
 
         for folder in enabled_mod_folders:
             # remove duplicate folders from disabled list if there is a symlink for them
             if files.is_symlink(folder):
-                cache_folder = os.path.join(
-                    files.get_mod_cache_folder(), os.path.basename(folder)
+                install_folder = os.path.join(
+                    files.get_mod_install_folder(), os.path.basename(folder)
                 )
-                if cache_folder in disabled_mod_folders:
-                    disabled_mod_folders.remove(cache_folder)
+                if install_folder in disabled_mod_folders:
+                    disabled_mod_folders.remove(install_folder)
 
         enabled_mod_data, enabled_mod_errors = self.get_mods(
             enabled_mod_folders, enabled=True, progress_func=progress_func
@@ -506,17 +517,19 @@ class flight_sim:
         for i, mod_folder in enumerate(mod_folders):
             # get the base folder name
             base_mod_folder = os.path.basename(mod_folder)
-            cache_folder = os.path.join(files.get_mod_cache_folder(), base_mod_folder)
+            install_folder = os.path.join(
+                files.get_mod_install_folder(), base_mod_folder
+            )
             dest_folder = os.path.join(self.get_sim_mod_folder(), base_mod_folder)
 
             # copy mod to install dir
             if delete:
-                files.move_folder(mod_folder, cache_folder, update_func=update_func)
+                files.move_folder(mod_folder, install_folder, update_func=update_func)
             else:
-                files.copy_folder(mod_folder, cache_folder, update_func=update_func)
+                files.copy_folder(mod_folder, install_folder, update_func=update_func)
 
             # create the symlink to the sim
-            files.create_symlink(cache_folder, dest_folder)
+            files.create_symlink(install_folder, dest_folder)
 
             if percent_func:
                 percent_func((i, len(mod_folders)))
@@ -549,7 +562,7 @@ class flight_sim:
         return True
 
     def enable_mod(self, folder, update_func=None):
-        """Copies mod folder into flight sim install."""
+        """Creates symlink in flight sim install."""
         logger.debug("Enabling mod {}".format(folder))
         src_folder = self.get_mod_folder(folder, enabled=False)
         dest_folder = self.get_mod_folder(folder, enabled=True)
@@ -559,7 +572,7 @@ class flight_sim:
         return True
 
     def disable_mod(self, folder, update_func=None):
-        """Copies mod folder into mod cache."""
+        """Deletes symlink/dopies mod folder into mod install location."""
         logger.debug("Disabling mod {}".format(folder))
         src_folder = self.get_mod_folder(folder, enabled=True)
         dest_folder = self.get_mod_folder(folder, enabled=False)
@@ -568,7 +581,7 @@ class flight_sim:
             # delete symlink
             files.delete_symlink(src_folder, update_func=update_func)
         else:
-            # move mod to mod cache
+            # move mod to mod install location
             files.move_folder(src_folder, dest_folder, update_func=update_func)
 
         return True
