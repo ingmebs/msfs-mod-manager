@@ -250,7 +250,7 @@ class main_widget(QtWidgets.QWidget):
 
         # refresh the data
         if refresh:
-            self.refresh()
+            self.refresh(automated=True)
 
         # cleanup
         if button:
@@ -614,7 +614,7 @@ class main_widget(QtWidgets.QWidget):
                 # this will always be opening a folder and therefore is safe
                 os.startfile(os.path.dirname(archive))  # nosec
 
-    def refresh(self, first=False):
+    def refresh(self, first=False, automated=False):
         """Refreshes all mod data."""
 
         """This is not a separate thread, as the time it takes to parse each manifest
@@ -634,6 +634,10 @@ class main_widget(QtWidgets.QWidget):
                 progress.set_percent(percent, total)
                 # make sure the progress bar gets updated.
                 self.appctxt.app.processEvents()
+
+            # clear mod cache if a human clicked the button
+            if not automated:
+                self.flight_sim.clear_mod_cache()
 
             # build list of mods
             all_mods_data, all_mods_errors = self.flight_sim.get_all_mods(

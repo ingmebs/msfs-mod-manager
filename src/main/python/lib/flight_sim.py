@@ -1,4 +1,5 @@
 import datetime
+import functools
 import json
 import os
 
@@ -254,6 +255,13 @@ class flight_sim:
         logger.warning("Simulator path could not be automatically determined")
         return (False, None)
 
+    def clear_mod_cache(self):
+        """Clears the cache of the mod parsing functions."""
+        self.parse_mod_layout.cache_clear()
+        self.parse_mod_files.cache_clear()
+        self.parse_mod_manifest.cache_clear()
+
+    @functools.lru_cache()
     def get_sim_mod_folder(self):
         """Returns the path to the community packages folder inside Flight Simulator.
         Tries to resolve symlinks in every step of the path."""
@@ -263,6 +271,7 @@ class flight_sim:
             files.resolve_symlink(os.path.join(self.sim_packages_folder, "Community"))
         )
 
+    @functools.lru_cache()
     def get_sim_official_folder(self):
         """Returns the path to the official packages folder inside Flight Simulator.
         Tries to resolve symlinks in every step of the path."""
@@ -279,6 +288,7 @@ class flight_sim:
             files.resolve_symlink(os.path.join(official_packages, store))
         )
 
+    @functools.lru_cache()
     def get_mod_folder(self, folder, enabled):
         """Returns path to mod folder given folder name and enabled status."""
         # logger.debug("Determining path for mod {}, enabled: {}".format(folder, enabled))
@@ -292,6 +302,7 @@ class flight_sim:
 
         return files.fix_path(mod_folder)
 
+    @functools.lru_cache()
     def parse_mod_layout(self, mod_folder):
         """Builds the mod files info as a dictionary. Parsed from the layout.json."""
         logger.debug("Parsing layout for {}".format(mod_folder))
@@ -309,6 +320,7 @@ class flight_sim:
 
         return data["content"]
 
+    @functools.lru_cache()
     def parse_mod_files(self, mod_folder):
         """Builds the mod files info as a dictionary. Parsed from the layout.json."""
         logger.debug("Parsing all mod files for {}".format(mod_folder))
@@ -325,6 +337,7 @@ class flight_sim:
 
         return data
 
+    @functools.lru_cache()
     def parse_mod_manifest(self, mod_folder, enabled=True):
         """Builds the mod metadata as a dictionary. Parsed from the manifest.json."""
         logger.debug("Parsing manifest for {}".format(mod_folder))
@@ -536,6 +549,8 @@ class flight_sim:
 
             installed_mods.append(base_mod_folder)
 
+        # clear the cache of the mod function
+        self.clear_mod_cache()
         # return installed mods list
         return installed_mods
 
