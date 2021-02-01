@@ -589,10 +589,10 @@ class main_widget(QtWidgets.QWidget):
                     "Failed to create backup",
                 )
 
-            # start the thread, with extra 20 min timeout
+            # start the thread, with no timeout
             with thread.thread_wait(
                 backuper.finished,
-                timeout=1200000,
+                timeout=None,
                 finish_func=finish,
                 failed_signal=backuper.failed,
                 failed_func=failed,
