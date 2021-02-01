@@ -167,6 +167,13 @@ def create_symlink(src, dest, update_func=None):
     # os.symlink(src, dest)
     # TODO, reimplement with Win32
 
+    # delete an existing destination
+    if os.path.exists(dest):
+        if is_symlink(dest):
+            delete_symlink(dest)
+        else:
+            delete_folder(dest)
+
     # create the link
     subprocess.run(
         ["cmd", "/c", "mklink", "/J", dest, src],
